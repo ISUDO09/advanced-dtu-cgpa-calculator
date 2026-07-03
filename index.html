@@ -1339,7 +1339,7 @@
         }
 
         /* QUICK CGPA PDF LOGIC */
-            function generateDetailedPDF(remarksMap) {
+                    function generateDetailedPDF(remarksMap) {
             const loading = document.getElementById('pdf-loading'); loading.classList.add('active');
             setTimeout(() => {
                 try {
@@ -1368,7 +1368,7 @@
                     });
                     const cgpa = totalCreditsAll > 0 ? totalPointsAll / totalCreditsAll : 0;
                     
-                        let y = generatePDFHeader(doc, 'Consolidated Grade Report', pageW, margin, { 
+                    let y = generatePDFHeader(doc, 'Consolidated Grade Report', pageW, margin, { 
                         cgpa: cgpa.toFixed(2), 
                         credits: totalCreditsAll,
                         totalCredits: totalCreditsAttempted
@@ -1407,14 +1407,14 @@
                     let basePadding = 0.5;    // Aggressively reduced padding
                     let gapAfterSem = 4;      // Reduced gap
                     let semHeadHeight = 4.5;  
-                    let calcStrH = 3.5; 
+                    // calcStrH removed as calculation formulas are no longer printed to save space
 
-                    let availableHeight = pageH - y - 30; // Slightly tighter reserved space for summary + footer
+                    let availableHeight = pageH - y - 25; // Slightly tighter reserved space for summary + footer
                     let blocksPerCol = Math.ceil(activeSemesters / 2);
                     let maxRows = Math.max(rowsCol1, rowsCol2) + blocksPerCol; 
 
                     let rowH = baseFont * 0.3528 + 2 * basePadding;
-                    let requiredHeight = blocksPerCol * (semHeadHeight + calcStrH + gapAfterSem) + maxRows * rowH;
+                    let requiredHeight = blocksPerCol * (semHeadHeight + gapAfterSem) + maxRows * rowH;
 
                     if (requiredHeight > availableHeight) {
                         let scale = availableHeight / requiredHeight;
@@ -1422,7 +1422,6 @@
                         basePadding = Math.max(0.2, Math.floor(basePadding * scale * 10) / 10);
                         gapAfterSem = Math.max(2, Math.floor(gapAfterSem * scale * 10) / 10);
                         semHeadHeight = Math.max(3, Math.floor(semHeadHeight * scale * 10) / 10);
-                        calcStrH = Math.max(2, Math.floor(calcStrH * scale * 10) / 10);
                     }
 
                     // Arrange semester blocks side-by-side (2 per row)
@@ -1432,7 +1431,7 @@
                         
                         const eff1 = sem1 ? sem1.subjects.filter(s => !s.replaced && (s.name.trim() || s.credits > 0)) : [];
                         const eff2 = sem2 ? sem2.subjects.filter(s => !s.replaced && (s.name.trim() || s.credits > 0)) : [];
-                        const estHeightLoop = Math.max(eff1.length, eff2.length) * rowH + semHeadHeight + calcStrH;
+                        const estHeightLoop = Math.max(eff1.length, eff2.length) * rowH + semHeadHeight;
                         
                         if (y + estHeightLoop > pageH - 15) {
                             doc.addPage();
@@ -1468,7 +1467,7 @@
                                     sub.notif || ''
                                 ]);
                                 
-                                   doc.autoTable({
+                                doc.autoTable({
                                     startY: tableY, 
                                     margin: { left: startX, right: pageW - startX - colWidth }, 
                                     head: [['Course Code', 'Course Title', 'Cr.', 'G', 'Notif No.']],
@@ -1497,22 +1496,13 @@
                                 
                                 let currentFinalY = doc.lastAutoTable.finalY;
                                 
-                                // Replace dashed line with thin solid grey line
+                                // Keep the thin solid grey line to separate semesters
                                 doc.setDrawColor(150, 150, 150);
                                 doc.setLineWidth(0.2);
                                 doc.line(startX, currentFinalY + 1, startX + colWidth, currentFinalY + 1);
                                 currentFinalY += 2;
                                 
-                                const sgpaCalc = generatePlainCalculationString(sem.subjects, 'sgpa');
-                                if (sgpaCalc) {
-                                    const pts = sgpaCalc.parts.map(p => p.replace('(', '').replace(')', '').replace('x', 'Ã—'));
-                                    const calcStr = `SGPA = (${pts.join(' + ')}) Ã· ${sgpaCalc.totalCredits} = ${sgpaCalc.result.toFixed(2)}`;
-                                    const calcFontSize = Math.max(5, baseFont * 0.8);
-                                    doc.setFontSize(calcFontSize); doc.setFont('times', 'normal'); doc.setTextColor(150, 150, 150);
-                                    const splitCalc = doc.splitTextToSize(calcStr, colWidth);
-                                    doc.text(splitCalc, startX, currentFinalY + 1);
-                                    currentFinalY += (splitCalc.length * (calcFontSize * 0.3528)) + 1;
-                                }
+                                // SGPA calculation formula text removed as requested
                                 return currentFinalY;
                             }
                             return y;
@@ -1536,26 +1526,16 @@
                     doc.line(margin, y, pageW - margin, y); y += sumGap;
                     
                     doc.setFontSize(11); doc.setFont('times', 'bold'); doc.setTextColor(0,0,0);
-                    doc.text('', pageW / 2, y, { align: 'center' }); y += 6;
+                    doc.text('SUMMARY', pageW / 2, y, { align: 'center' }); y += 6;
                     
-                                       // Official DTU style summary - Single Horizontal Line
+                    // Official DTU style summary - Single Horizontal Line
                     doc.setFontSize(10); doc.setFont('times', 'bold'); doc.setTextColor(0,0,0);
                     const creditsStr = `CREDITS EARNED / TOTAL CREDITS : ${totalCreditsAll}/${totalCreditsAttempted}`;
                     doc.text(creditsStr, margin, y, { align: 'left' });
                     doc.text(`CGPA : ${cgpa.toFixed(2)}`, pageW - margin, y, { align: 'right' });
                     y += sumGap;
                     
-                    const allSubjects = state.semesters.flatMap(s => s.subjects); 
-                    const cgpaCalc = generatePlainCalculationString(allSubjects, 'cgpa');
-                    if(cgpaCalc) {
-                        const pts = cgpaCalc.parts.map(p => p.replace('(', '').replace(')', '').replace('x', 'Ã—'));
-                        const calcStr = `CGPA = (${pts.join(' + ')}) Ã· ${cgpaCalc.totalCredits} = ${cgpaCalc.result.toFixed(2)}`;
-                        doc.setFontSize(6.5); doc.setFont('times', 'normal'); doc.setTextColor(150, 150, 150);
-                        const splitCalc = doc.splitTextToSize(calcStr, pageW - margin*2); 
-                        doc.text(splitCalc, margin, y); 
-                        y += (splitCalc.length * 2.8) + 2;
-                        doc.setTextColor(0,0,0);
-                    }
+                    // CGPA calculation formula text removed as requested
                     
                     doc.setDrawColor(20, 20, 20); doc.setLineWidth(0.5); 
                     doc.line(margin, y, pageW - margin, y); y += sumGap;
@@ -1568,7 +1548,7 @@
                         remarksEntries.forEach(([key, remark]) => {
                             if (y > pageH - 15) { doc.addPage(); y = margin; }
                             doc.setTextColor(0, 0, 0); 
-                            doc.text(`â€¢ ${key}: ${remark}`, margin, y); y += 4;
+                            doc.text(`• ${key}: ${remark}`, margin, y); y += 4;
                         });
                         y += 4;
                     }
