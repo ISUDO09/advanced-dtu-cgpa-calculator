@@ -1237,30 +1237,60 @@
             }
         }
 
-        function generatePDFHeader(doc, titleText, pageW, margin) {
+            function generatePDFHeader(doc, titleText, pageW, margin, extraData = {}) {
             let y = margin;
             const logoUrl = 'https://upload.wikimedia.org/wikipedia/en/b/b5/DTU%2C_Delhi_official_logo.png';
-            const logoW = 25; const logoH = 25;
+            const logoW = 20; const logoH = 20;
             try { doc.addImage(logoUrl, 'PNG', (pageW - logoW) / 2, y, logoW, logoH); } catch (err) {}
-            y += logoH + 6;
-            doc.setFontSize(18); doc.setFont('helvetica', 'bold'); doc.setTextColor(26, 31, 54);
-            doc.text('Delhi Technological University', pageW / 2, y, { align: 'center' }); y += 6;
-            doc.setFontSize(11); doc.setFont('helvetica', 'normal'); doc.setTextColor(80, 80, 80);
-            doc.text('(Formerly Delhi College of Engineering)', pageW / 2, y, { align: 'center' }); y += 5;
-            doc.setFontSize(10); doc.setTextColor(120, 120, 120);
-            doc.text(titleText, pageW / 2, y, { align: 'center' }); y += 8;
-            doc.setDrawColor(26, 31, 54); doc.setLineWidth(0.6);
-            doc.line(margin, y, pageW - margin, y); y += 10;
-            const sName = (document.getElementById('student-name').value || '').trim();
-            const sRoll = (document.getElementById('student-roll').value || '').trim();
-            if (sName || sRoll) {
-                doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.setTextColor(0,0,0);
-                let txt = ''; if (sName) txt += `Name: ${sName}`; if (sRoll) { if (txt) txt += '          '; txt += `Roll No: ${sRoll}`; }
-                doc.text(txt, margin, y); y += 6;
-            }
-            doc.setFontSize(8.5); doc.setFont('helvetica', 'italic'); doc.setTextColor(120, 120, 120);
-            doc.text(`Date: ${new Date().toLocaleDateString('en-IN', {day:'2-digit',month:'long',year:'numeric'})}`, pageW - margin, y, { align: 'right' });
-            doc.setTextColor(0, 0, 0); y += 8;
+            y += logoH + 3;
+            
+            doc.setFontSize(14); doc.setFont('times', 'bold'); doc.setTextColor(20, 20, 20);
+            doc.text('Delhi Technological University', pageW / 2, y, { align: 'center' }); y += 4;
+            doc.setFontSize(9); doc.setFont('times', 'normal'); doc.setTextColor(70, 70, 70);
+            doc.text('(Formerly Delhi College of Engineering)', pageW / 2, y, { align: 'center' }); y += 4;
+            doc.setFontSize(10); doc.setTextColor(40, 40, 40); doc.setFont('times', 'bold');
+            doc.text(titleText, pageW / 2, y, { align: 'center' }); y += 4;
+            
+            doc.setDrawColor(20, 20, 20); doc.setLineWidth(0.5);
+            doc.line(margin, y, pageW - margin, y); y += 4;
+            
+            const sName = extraData.studentName || (document.getElementById('student-name').value || '').trim() || 'N/A';
+            const sRoll = extraData.studentRoll || (document.getElementById('student-roll').value || '').trim() || 'N/A';
+            const cgpa = extraData.cgpa !== undefined ? extraData.cgpa : 'N/A';
+            const credits = extraData.credits !== undefined ? extraData.credits : 'N/A';
+            
+              doc.setFontSize(9); doc.setTextColor(0,0,0);
+            
+            // Helper to print bold label and normal value horizontally
+            const printField = (label, value, x, align) => {
+                doc.setFont('times', 'bold');
+                const lblW = doc.getTextWidth(label);
+                doc.setFont('times', 'normal');
+                const valW = doc.getTextWidth(value);
+                
+                if (align === 'right') {
+                    const startX = x - valW - lblW;
+                    doc.setFont('times', 'bold');
+                    doc.text(label, startX, y);
+                    doc.setFont('times', 'normal');
+                    doc.text(value, startX + lblW, y);
+                } else {
+                    doc.text(label, x, y);
+                    doc.setFont('times', 'normal');
+                    doc.text(value, x + lblW, y);
+                }
+            };
+            
+            // Single horizontal row with evenly spaced fields
+            printField('NAME : ', sName, margin, 'left');
+            printField('ROLL NO. : ', sRoll, pageW * 0.35, 'left');
+            printField('CGPA : ', cgpa, pageW * 0.62, 'left');
+            printField('CREDITS EARNED : ', `${credits}/${extraData.totalCredits || ''}`, pageW - margin, 'right');
+            
+            y += 5; // Spacing after the single row
+            
+            doc.setDrawColor(20, 20, 20); doc.setLineWidth(0.5);
+            doc.line(margin, y, pageW - margin, y); y += 6;
             return y;
         }
 
@@ -1309,164 +1339,257 @@
         }
 
         /* QUICK CGPA PDF LOGIC */
-        function generateQuickCgpaPDF() {
-            const loading = document.getElementById('pdf-loading'); loading.classList.add('active');
-            const calcData = calcQuickCgpa();
-            setTimeout(() => {
-                try {
-                    const { jsPDF } = window.jspdf; const doc = new jsPDF('p', 'mm', 'a4');
-                    const pageW = doc.internal.pageSize.getWidth(); const margin = 14; let y = generatePDFHeader(doc, 'CGPA Calculator Report', pageW, margin);
-                    const tableBody = quickCgpaState.rows.map((r, i) => [i+1, r.credits, r.cgpa]);
-                    doc.autoTable({
-                        startY: y, head: [['Sr.', 'Semester Credits', 'Secured CGPA']], body: tableBody, theme: 'grid',
-                        headStyles: { fillColor: [26, 31, 54], textColor: 255, halign: 'center', fontSize: 9, fontStyle: 'bold' },
-                        styles: { fontSize: 10, cellPadding: 3, lineColor: [180, 180, 180], lineWidth: 0.15 },
-                        columnStyles: { 0: { halign: 'center', cellWidth: 15 }, 1: { halign: 'center', cellWidth: 40 }, 2: { halign: 'center', cellWidth: 40 } },
-                    });
-                    y = doc.lastAutoTable.finalY + 5;
-                    doc.setFontSize(12); doc.setFont('helvetica', 'normal'); doc.text(`Total Credits: ${calcData.totalCredits}`, margin, y);
-                    doc.setFont('helvetica', 'bold'); doc.text(`Total CGPA: ${calcData.res.toFixed(3)}`, pageW - margin, y, { align: 'right' }); y += 8;
-                    if (calcData.totalCredits > 0) {
-                        doc.setFont('courier', 'normal'); doc.setFontSize(9); doc.setTextColor(80, 80, 80); doc.setFont('helvetica', 'bold');
-                        doc.text('Calculation Details:', margin, y); y += 4; doc.setFont('courier', 'normal');
-                        const calcStr = `CGPA = (${calcData.parts.join(' + ')}) / ${calcData.totalCredits} = ${calcData.totalPoints} / ${calcData.totalCredits} = ${calcData.res.toFixed(3)}`;
-                        const splitCalc = doc.splitTextToSize(calcStr, pageW - margin*2); doc.text(splitCalc, margin, y); y += (splitCalc.length * 3.5) + 4;
-                    }
-                    doc.setDrawColor(26, 31, 54); doc.setLineWidth(0.6); doc.line(margin, y, pageW - margin, y); y += 9;
-                    doc.setFontSize(7.5); doc.setFont('helvetica', 'italic'); doc.setTextColor(130, 130, 130);
-                    doc.text('Grading as per DTU Absolute Grading Method. Developed by ISUDO09', pageW / 2, y, { align: 'center' });
-                    doc.save('DTU_CGPA_Result.pdf'); showToast('PDF downloaded successfully', 'success');
-                } catch (e) { console.error(e); showToast('Error generating PDF', 'error'); } finally { loading.classList.remove('active'); }
-            }, 50);
-        }
-
-        function showRemarksModal(failedSubjects) {
-            const body = document.getElementById('remarks-body');
-            body.innerHTML = failedSubjects.map(f =>
-                `<div class="remarks-item"><label>${escapeHtml(f.key)} <span class="fail-badge">${getSubStatus(f.sub)==='FAIL'?'FAIL':'NOT CLEARED'}</span></label><input type="text" class="input" data-remark-key="${escapeHtml(f.key)}" placeholder="Optional remarks"></div>`
-            ).join('');
-            document.getElementById('remarks-modal').classList.add('active');
-        }
-
-        function closeRemarksModal() { document.getElementById('remarks-modal').classList.remove('active'); }
-        function collectRemarks() {
-            const remarks = {};
-            document.querySelectorAll('[data-remark-key]').forEach(el => { const val = el.value.trim(); if (val) remarks[el.dataset.remarkKey] = val; });
-            return remarks;
-        }
-
-        function generateDetailedPDF(remarksMap) {
+            function generateDetailedPDF(remarksMap) {
             const loading = document.getElementById('pdf-loading'); loading.classList.add('active');
             setTimeout(() => {
                 try {
                     const { jsPDF } = window.jspdf; const doc = new jsPDF('p', 'mm', 'a4');
                     const pageW = doc.internal.pageSize.getWidth(); const pageH = doc.internal.pageSize.getHeight();
-                    const margin = 14; let y = generatePDFHeader(doc, 'SGPA & CGPA Report', pageW, margin);
-                    let totalCreditsAll = 0, totalPointsAll = 0;
+                    const margin = 12; 
+                    const gap = 5;
+                    const colWidth = (pageW - 2 * margin - gap) / 2;
 
-                    state.semesters.forEach((sem, semIdx) => {
-                        const effective = sem.subjects.filter(s => !s.replaced && (s.name.trim() || s.credits > 0));
-                        if (effective.length === 0) return;
-                        if (y > 225) { doc.addPage(); y = margin; }
-                        doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.text(`Semester ${semIdx + 1}`, margin, y); y += 3;
-                        const tableBody = []; let srNo = 1, semCr = 0, semPts = 0;
-                        effective.forEach(sub => {
-                            const gp = GRADE_POINTS[sub.grade] || 0; const status = getSubStatus(sub); const blHist = sub.isBacklog ? 'Yes' : 'No';
-                            semCr += sub.credits; semPts += gp * sub.credits;
-                            // Reordered columns: Sr, Code, Name, Credits, Grade, GP, Status, BL Hist, Notif (Last)
-                            // FIXED: Removed '—' placeholder for empty Notif fields to avoid weird font characters
-                            tableBody.push([srNo++, sub.code || '—', sub.name || '—', sub.credits, sub.grade, gp, status, blHist, sub.notif || '']);
-                        });
-                        effective.forEach(sub => {
-                            if (sub.grade !== 'F') {
-                                totalCreditsAll += sub.credits;
-                                totalPointsAll += (GRADE_POINTS[sub.grade] || 0) * sub.credits;
-                            }
-                        });
-                        const sgpa = semCr > 0 ? semPts / semCr : 0;
-                        
-                        // Updated Table Headers with Notif at end
-                        doc.autoTable({
-                            startY: y, margin: { left: margin, right: margin }, 
-                            head: [['Sr.', 'Sub Code', 'Subject Name', 'Cr.', 'Grade', 'GP', 'Status', 'BL Hist.', 'Notif']],
-                            body: tableBody, theme: 'grid',
-                            styles: { fontSize: 8, cellPadding: 2, lineColor: [180, 180, 180], lineWidth: 0.15 },
-                            headStyles: { fillColor: [26, 31, 54], textColor: [255,255, 255], fontSize: 8, fontStyle: 'bold', halign: 'center', cellPadding: 2.5 },
-                            columnStyles: { 
-                                0: { halign: 'center', cellWidth: 10 }, 
-                                1: { cellWidth: 18 }, 
-                                2: { cellWidth: 'auto' }, 
-                                3: { halign: 'center', cellWidth: 12 }, 
-                                4: { halign: 'center', cellWidth: 14 }, 
-                                5: { halign: 'center', cellWidth: 10 }, // GP
-                                6: { cellWidth: 30, fontSize: 7.5 }, // Status
-                                7: { halign: 'center', cellWidth: 15 }, // BL Hist
-                                8: { halign: 'center', cellWidth: 15 }  // Notif (Moved here)
-                            },
-                            didParseCell: function(data) {
-                                if (data.section === 'body' && data.column.index === 6) {
-                                    const v = data.cell.raw;
-                                    if (v === 'PASS') { data.cell.styles.textColor = [0, 140, 80]; data.cell.styles.fontStyle = 'bold'; }
-                                    else if (v === 'FAIL' || v === 'BACKLOG (Not Cleared)') { data.cell.styles.textColor = [210, 40, 40]; data.cell.styles.fontStyle = 'bold'; }
-                                    else if (v === 'BACKLOG (Cleared)') { data.cell.styles.textColor = [190, 120, 0]; data.cell.styles.fontStyle = 'bold'; }
-                                }
-                            },
-                        });
-                        y = doc.lastAutoTable.finalY + 5;
-                        doc.setFontSize(9.5); doc.setFont('helvetica', 'normal'); doc.text(`Total Credits: ${semCr}`, margin, y);
-                        doc.setFont('helvetica', 'bold'); doc.text(`SGPA: ${sgpa.toFixed(2)}`, pageW - margin, y, { align: 'right' }); y += 7;
-                        
-                        // Add SGPA Calculation formula to PDF as per request
-                        const sgpaCalc = generatePlainCalculationString(sem.subjects, 'sgpa');
-                        if(sgpaCalc) {
-                            doc.setFont('courier', 'normal'); doc.setFontSize(8); doc.setTextColor(80, 80, 80);
-                            // Format: (Ax)+(Bx)... / Total = Result - Using 'x' for safety
-                            const calcStr = `SGPA = ${sgpaCalc.textStr}`;
-                            const splitCalc = doc.splitTextToSize(calcStr, pageW - margin*2); doc.text(splitCalc, margin, y);
-                            y += (splitCalc.length * 3.5) + 4; doc.setTextColor(0,0,0);
+                    // Helper for Roman Numerals
+                    const romanNumerals = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
+                    const getRoman = (num) => romanNumerals[num] || num;
+
+                    // Pre-calculate summary data for header
+                    let totalCreditsAll = 0, totalPointsAll = 0, totalCreditsAttempted = 0;
+                    state.semesters.forEach(sem => {
+                        if(sem.subjects) {
+                            sem.subjects.forEach(s => {
+                                if(s.replaced||!s.name.trim()||s.credits<=0)return;
+                                totalCreditsAttempted += s.credits; // Sum all attempted credits
+                                if(s.grade==='F')return;
+                                totalCreditsAll += s.credits;
+                                totalPointsAll += (GRADE_POINTS[s.grade] || 0) * s.credits;
+                            });
                         }
-
-                        if (semIdx < state.semesters.length - 1) { doc.setDrawColor(180, 180, 180); doc.setLineWidth(0.2); doc.setLineDashPattern([2, 2], 0); doc.line(margin, y, pageW - margin, y); doc.setLineDashPattern([], 0); y += 7; }
                     });
-                    if (y > 245) { doc.addPage(); y = margin; } y += 3;
-                    doc.setDrawColor(26, 31, 54); doc.setLineWidth(0.6); doc.line(margin, y, pageW - margin, y); y += 7;
-                    doc.setFontSize(13); doc.setFont('helvetica', 'bold'); doc.text('FINAL SUMMARY', pageW / 2, y, { align: 'center' }); y += 9;
                     const cgpa = totalCreditsAll > 0 ? totalPointsAll / totalCreditsAll : 0;
-                    doc.setFontSize(10.5); doc.setFont('helvetica', 'normal'); doc.text(`Total Credits (Passed Only):  ${totalCreditsAll}`, margin + 4, y); y += 7;
-                    doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.setTextColor(0, 140, 80); doc.text(`Final CGPA:  ${cgpa.toFixed(2)}`, margin + 4, y); doc.setTextColor(0, 0, 0); y += 8;
-                    if (totalCreditsAll > 0) {
-                        const allSubjects = state.semesters.flatMap(s => s.subjects); 
-                        const cgpaCalc = generatePlainCalculationString(allSubjects, 'cgpa');
-                        if(cgpaCalc) {
-                            doc.setFontSize(9); doc.setTextColor(60, 60, 60); doc.setFont('helvetica', 'bold'); doc.text('Calculation Details:', margin + 4, y); y += 4;
-                            doc.setFont('courier', 'normal'); doc.setTextColor(80, 80, 80);
-                            const calcStr = `CGPA = ${cgpaCalc.textStr}`;
-                            const splitCalc = doc.splitTextToSize(calcStr, pageW - margin*2 - 4); doc.text(splitCalc, margin + 4, y); y += (splitCalc.length * 3.5) + 4;
+                    
+                        let y = generatePDFHeader(doc, 'Consolidated Grade Report', pageW, margin, { 
+                        cgpa: cgpa.toFixed(2), 
+                        credits: totalCreditsAll,
+                        totalCredits: totalCreditsAttempted
+                    });
+
+                    const abbreviateTitle = (title) => {
+                        if (!title) return '';
+                        let t = title;
+                        const replacements = [
+                            [/\bEngineering\b/g, 'Engg.'], [/\bMathematics\b/g, 'Math'], [/\bElectrical\b/g, 'Elec.'],
+                            [/\bElectronics\b/g, 'Elec.'], [/\bTransmission\b/g, 'Trans.'], [/\bDistribution\b/g, 'Dist.'],
+                            [/\bMicroprocessors\b/g, 'Microproc.'], [/\bMicrocontroller\b/g, 'MCU'], [/\bApplications\b/g, 'Apps.'],
+                            [/\bTechnology\b/g, 'Tech.'], [/\bCommunication\b/g, 'Comm.'], [/\bScience\b/g, 'Sci.'],
+                            [/\bLaboratory\b/g, 'Lab'], [/\bIntroduction\b/g, 'Intro'], [/\bFundamentals\b/g, 'Fund.'],
+                            [/\bSystem\b/g, 'Sys.'], [/\bSystems\b/g, 'Sys.'], [/\bMechanical\b/g, 'Mech.'],
+                            [/\band\b/g, '&'], [/\bProgramming\b/g, 'Prog.'], [/\bStructures\b/g, 'Struct.'],
+                            [/\bManagement\b/g, 'Mgmt.']
+                        ];
+                        replacements.forEach(([regex, str]) => { t = t.replace(regex, str); });
+                        return t;
+                    };
+
+                    // --- GLOBAL AUTO-FIT ALGORITHM ---
+                    let activeSemesters = 0;
+                    let rowsCol1 = 0, rowsCol2 = 0;
+                    state.semesters.forEach((sem, idx) => {
+                        const effective = sem.subjects.filter(s => !s.replaced && (s.name.trim() || s.credits > 0));
+                        if (effective.length > 0) {
+                            activeSemesters++;
+                            if (activeSemesters % 2 === 1) rowsCol1 += effective.length;
+                            else rowsCol2 += effective.length;
                         }
+                    });
+
+                    let baseFont = 7.5;       // Reduced font size
+                    let basePadding = 0.5;    // Aggressively reduced padding
+                    let gapAfterSem = 4;      // Reduced gap
+                    let semHeadHeight = 4.5;  
+                    let calcStrH = 3.5; 
+
+                    let availableHeight = pageH - y - 30; // Slightly tighter reserved space for summary + footer
+                    let blocksPerCol = Math.ceil(activeSemesters / 2);
+                    let maxRows = Math.max(rowsCol1, rowsCol2) + blocksPerCol; 
+
+                    let rowH = baseFont * 0.3528 + 2 * basePadding;
+                    let requiredHeight = blocksPerCol * (semHeadHeight + calcStrH + gapAfterSem) + maxRows * rowH;
+
+                    if (requiredHeight > availableHeight) {
+                        let scale = availableHeight / requiredHeight;
+                        baseFont = Math.max(5.5, Math.floor(baseFont * scale * 10) / 10);
+                        basePadding = Math.max(0.2, Math.floor(basePadding * scale * 10) / 10);
+                        gapAfterSem = Math.max(2, Math.floor(gapAfterSem * scale * 10) / 10);
+                        semHeadHeight = Math.max(3, Math.floor(semHeadHeight * scale * 10) / 10);
+                        calcStrH = Math.max(2, Math.floor(calcStrH * scale * 10) / 10);
                     }
-                    doc.setDrawColor(26, 31, 54); doc.setLineWidth(0.6); doc.line(margin, y, pageW - margin, y); y += 9;
+
+                    // Arrange semester blocks side-by-side (2 per row)
+                    for (let i = 0; i < state.semesters.length; i += 2) {
+                        const sem1 = state.semesters[i];
+                        const sem2 = state.semesters[i + 1];
+                        
+                        const eff1 = sem1 ? sem1.subjects.filter(s => !s.replaced && (s.name.trim() || s.credits > 0)) : [];
+                        const eff2 = sem2 ? sem2.subjects.filter(s => !s.replaced && (s.name.trim() || s.credits > 0)) : [];
+                        const estHeightLoop = Math.max(eff1.length, eff2.length) * rowH + semHeadHeight + calcStrH;
+                        
+                        if (y + estHeightLoop > pageH - 15) {
+                            doc.addPage();
+                            y = margin;
+                        }
+
+                        let finalY1 = y, finalY2 = y;
+
+                        const renderSemesterBlock = (sem, semIndex, startX) => {
+                            const effective = sem.subjects.filter(s => !s.replaced && (s.name.trim() || s.credits > 0));
+                            if (effective.length > 0) {
+                                let semCr = 0, semPts = 0;
+                                effective.forEach(sub => {
+                                    const gp = GRADE_POINTS[sub.grade] || 0; 
+                                    semCr += sub.credits; 
+                                    semPts += gp * sub.credits;
+                                });
+                                const sgpa = semCr > 0 ? semPts / semCr : 0;
+                                
+                                doc.setFontSize(8); doc.setFont('times', 'bold'); doc.setTextColor(0,0,0);
+                                doc.text(`SEMESTER ${getRoman(semIndex)}`, startX, y);
+                                doc.text(`SGPA : ${sgpa.toFixed(2)}`, startX + colWidth, y, { align: 'right' });
+                                doc.setFontSize(7); doc.setFont('times', 'normal'); doc.setTextColor(50, 50, 50);
+                                doc.text(`Credits : ${semCr}`, startX, y + 3);
+                                
+                                let tableY = y + semHeadHeight;
+                                
+                                const tableBody = effective.map(sub => [
+                                    sub.code || '', 
+                                    abbreviateTitle(sub.name), 
+                                    sub.credits, 
+                                    sub.grade, 
+                                    sub.notif || ''
+                                ]);
+                                
+                                   doc.autoTable({
+                                    startY: tableY, 
+                                    margin: { left: startX, right: pageW - startX - colWidth }, 
+                                    head: [['Course Code', 'Course Title', 'Cr.', 'G', 'Notif No.']],
+                                    body: tableBody, 
+                                    theme: 'plain',
+                                    // Aggressively compact settings
+                                    styles: { font: 'times', fontSize: baseFont, cellPadding: basePadding, textColor: 0, overflow: 'ellipsize', cellWidth: 'wrap' },
+                                    headStyles: { font: 'times', textColor: 0, fontSize: baseFont, fontStyle: 'bold', fillColor: [255,255,255], cellPadding: basePadding, overflow: 'visible' }, // No truncation on headers
+                                    columnStyles: { 
+                                        // Auto percentage widths for tight packing
+                                        0: { halign: 'left', cellWidth: colWidth * 0.17 },   
+                                        1: { halign: 'left', cellWidth: colWidth * 0.51, overflow: 'ellipsize' }, 
+                                        2: { halign: 'center', cellWidth: colWidth * 0.07 },   
+                                        3: { halign: 'center', cellWidth: colWidth * 0.07 },   
+                                        4: { halign: 'center', cellWidth: colWidth * 0.18 }    
+                                    },
+                                    tableWidth: colWidth, // Force strict width
+                                    didDrawCell: function(data) {
+                                        if (data.section === 'head') {
+                                            doc.setDrawColor(0,0,0);
+                                            doc.setLineWidth(0.2);
+                                            doc.line(data.cell.x, data.cell.y + data.cell.height, data.cell.x + data.cell.width, data.cell.y + data.cell.height);
+                                        }
+                                    }
+                                });
+                                
+                                let currentFinalY = doc.lastAutoTable.finalY;
+                                
+                                // Replace dashed line with thin solid grey line
+                                doc.setDrawColor(150, 150, 150);
+                                doc.setLineWidth(0.2);
+                                doc.line(startX, currentFinalY + 1, startX + colWidth, currentFinalY + 1);
+                                currentFinalY += 2;
+                                
+                                const sgpaCalc = generatePlainCalculationString(sem.subjects, 'sgpa');
+                                if (sgpaCalc) {
+                                    const pts = sgpaCalc.parts.map(p => p.replace('(', '').replace(')', '').replace('x', '×'));
+                                    const calcStr = `SGPA = (${pts.join(' + ')}) ÷ ${sgpaCalc.totalCredits} = ${sgpaCalc.result.toFixed(2)}`;
+                                    const calcFontSize = Math.max(5, baseFont * 0.8);
+                                    doc.setFontSize(calcFontSize); doc.setFont('times', 'normal'); doc.setTextColor(150, 150, 150);
+                                    const splitCalc = doc.splitTextToSize(calcStr, colWidth);
+                                    doc.text(splitCalc, startX, currentFinalY + 1);
+                                    currentFinalY += (splitCalc.length * (calcFontSize * 0.3528)) + 1;
+                                }
+                                return currentFinalY;
+                            }
+                            return y;
+                        };
+
+                        if (sem1) finalY1 = renderSemesterBlock(sem1, i + 1, margin);
+                        if (sem2) {
+                            const rightX = margin + colWidth + gap;
+                            finalY2 = renderSemesterBlock(sem2, i + 2, rightX);
+                        }
+                        
+                        y = Math.max(finalY1, finalY2) + gapAfterSem; 
+                    }
+                    
+                    // Smart Summary
+                    let sumGap = Math.max(4, gapAfterSem);
+                    if (y > pageH - 30) { doc.addPage(); y = margin; }
+                    y += 2;
+                    
+                    doc.setDrawColor(20, 20, 20); doc.setLineWidth(0.5); 
+                    doc.line(margin, y, pageW - margin, y); y += sumGap;
+                    
+                    doc.setFontSize(11); doc.setFont('times', 'bold'); doc.setTextColor(0,0,0);
+                    doc.text('', pageW / 2, y, { align: 'center' }); y += 6;
+                    
+                                       // Official DTU style summary - Single Horizontal Line
+                    doc.setFontSize(10); doc.setFont('times', 'bold'); doc.setTextColor(0,0,0);
+                    const creditsStr = `CREDITS EARNED / TOTAL CREDITS : ${totalCreditsAll}/${totalCreditsAttempted}`;
+                    doc.text(creditsStr, margin, y, { align: 'left' });
+                    doc.text(`CGPA : ${cgpa.toFixed(2)}`, pageW - margin, y, { align: 'right' });
+                    y += sumGap;
+                    
+                    const allSubjects = state.semesters.flatMap(s => s.subjects); 
+                    const cgpaCalc = generatePlainCalculationString(allSubjects, 'cgpa');
+                    if(cgpaCalc) {
+                        const pts = cgpaCalc.parts.map(p => p.replace('(', '').replace(')', '').replace('x', '×'));
+                        const calcStr = `CGPA = (${pts.join(' + ')}) ÷ ${cgpaCalc.totalCredits} = ${cgpaCalc.result.toFixed(2)}`;
+                        doc.setFontSize(6.5); doc.setFont('times', 'normal'); doc.setTextColor(150, 150, 150);
+                        const splitCalc = doc.splitTextToSize(calcStr, pageW - margin*2); 
+                        doc.text(splitCalc, margin, y); 
+                        y += (splitCalc.length * 2.8) + 2;
+                        doc.setTextColor(0,0,0);
+                    }
+                    
+                    doc.setDrawColor(20, 20, 20); doc.setLineWidth(0.5); 
+                    doc.line(margin, y, pageW - margin, y); y += sumGap;
+                    
                     const remarksEntries = Object.entries(remarksMap || {}).filter(([_, v]) => v.trim());
                     if (remarksEntries.length > 0) {
-                        if (y > 260) { doc.addPage(); y = margin; }
-                        doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.text('Remarks', margin, y); y += 6;
-                        doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+                        if (y > pageH - 25) { doc.addPage(); y = margin; }
+                        doc.setFontSize(10); doc.setFont('times', 'bold'); doc.text('Remarks', margin, y); y += 5;
+                        doc.setFontSize(8.5); doc.setFont('times', 'normal');
                         remarksEntries.forEach(([key, remark]) => {
-                            if (y > 275) { doc.addPage(); y = margin; }
-                            doc.setTextColor(210, 40, 40); doc.text(`• ${key}:`, margin + 3, y, { continued: true });
-                            doc.setTextColor(60, 60, 60); doc.text(`  ${remark}`); y += 5;
+                            if (y > pageH - 15) { doc.addPage(); y = margin; }
+                            doc.setTextColor(0, 0, 0); 
+                            doc.text(`• ${key}: ${remark}`, margin, y); y += 4;
                         });
-                        doc.setTextColor(0, 0, 0); y += 4;
+                        y += 4;
                     }
-                    if (y > 265) { doc.addPage(); y = margin; } y += 2;
-                    doc.setFontSize(7.5); doc.setFont('helvetica', 'italic'); doc.setTextColor(130, 130, 130);
-                    doc.text('Grading as per DTU Absolute Grading Method. Developed by ISUDO09', pageW / 2, y, { align: 'center' });
+                    
+                    // Footer with page numbering
                     const pageCount = doc.internal.getNumberOfPages();
-                    for (let i =1; i <= pageCount; i++) {
-                        doc.setPage(i); doc.setFontSize(7); doc.setFont('helvetica', 'italic'); doc.setTextColor(160, 160, 160);
-                        doc.text(`Page ${i} of ${pageCount}`, pageW - margin, pageH - 6, { align: 'right' });
+                    for (let i = 1; i <= pageCount; i++) {
+                        doc.setPage(i); 
+                        doc.setFontSize(8); doc.setFont('times', 'italic'); doc.setTextColor(150, 150, 150);
+                        doc.text('Generated by DTU GPA Calculator', margin, pageH - 8, { align: 'left' });
+                        doc.text(`Page ${i} of ${pageCount}`, pageW - margin, pageH - 8, { align: 'right' });
                     }
-                    doc.save('DTU_GPA_Result.pdf'); showToast('PDF downloaded successfully', 'success');
-                } catch (err) { console.error('PDF generation failed:', err); showToast('PDF generation failed â€” try again', 'error'); } finally { loading.classList.remove('active'); }
+                    
+                    doc.save('DTU_Consolidated_Grade_Report.pdf'); 
+                    showToast('PDF downloaded successfully', 'success');
+                } catch (err) { 
+                    console.error('PDF generation failed:', err); 
+                    showToast('PDF generation failed', 'error'); 
+                } finally { 
+                    loading.classList.remove('active'); 
+                }
             }, 80);
         }
 
