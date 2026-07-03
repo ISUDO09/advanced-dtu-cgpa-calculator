@@ -637,7 +637,7 @@
         <div class="remarks-overlay" id="remarks-overlay"></div>
         <div class="remarks-card">
             <h3><i class="fas fa-pen-fancy"></i> Add Remarks</h3>
-            <p class="remarks-subtitle">Optional â€” Add notes for failed subjects</p>
+            <p class="remarks-subtitle">Optional Ã¢â‚¬â€ Add notes for failed subjects</p>
             <div class="remarks-body" id="remarks-body"></div>
             <div class="remarks-footer">
                 <button class="btn" id="btn-skip-remarks">Skip</button>
@@ -1304,7 +1304,7 @@
                     const pageW = doc.internal.pageSize.getWidth(); const margin = 14; let y = generatePDFHeader(doc, 'SGPA Calculator Report', pageW, margin);
                     const tableBody = quickSgpaState.rows.map((r, i) => {
                         const gp = GRADE_POINTS[r.grade] || 0; const status = r.grade === 'F' ? 'FAIL' : 'PASS';
-                        return [i+1, '', r.subject || '—', r.credits, r.grade, gp, status, 'No'];
+                        return [i+1, '', r.subject || 'â€”', r.credits, r.grade, gp, status, 'No'];
                     });
                     doc.autoTable({
                         startY: y, head: [['Sr.', 'Sub Code', 'Subject Name', 'Cr.', 'Grade', 'GP', 'Status', 'BL Hist.']],
@@ -1505,8 +1505,8 @@
                                 
                                 const sgpaCalc = generatePlainCalculationString(sem.subjects, 'sgpa');
                                 if (sgpaCalc) {
-                                    const pts = sgpaCalc.parts.map(p => p.replace('(', '').replace(')', '').replace('x', '×'));
-                                    const calcStr = `SGPA = (${pts.join(' + ')}) ÷ ${sgpaCalc.totalCredits} = ${sgpaCalc.result.toFixed(2)}`;
+                                    const pts = sgpaCalc.parts.map(p => p.replace('(', '').replace(')', '').replace('x', 'Ã—'));
+                                    const calcStr = `SGPA = (${pts.join(' + ')}) Ã· ${sgpaCalc.totalCredits} = ${sgpaCalc.result.toFixed(2)}`;
                                     const calcFontSize = Math.max(5, baseFont * 0.8);
                                     doc.setFontSize(calcFontSize); doc.setFont('times', 'normal'); doc.setTextColor(150, 150, 150);
                                     const splitCalc = doc.splitTextToSize(calcStr, colWidth);
@@ -1548,8 +1548,8 @@
                     const allSubjects = state.semesters.flatMap(s => s.subjects); 
                     const cgpaCalc = generatePlainCalculationString(allSubjects, 'cgpa');
                     if(cgpaCalc) {
-                        const pts = cgpaCalc.parts.map(p => p.replace('(', '').replace(')', '').replace('x', '×'));
-                        const calcStr = `CGPA = (${pts.join(' + ')}) ÷ ${cgpaCalc.totalCredits} = ${cgpaCalc.result.toFixed(2)}`;
+                        const pts = cgpaCalc.parts.map(p => p.replace('(', '').replace(')', '').replace('x', 'Ã—'));
+                        const calcStr = `CGPA = (${pts.join(' + ')}) Ã· ${cgpaCalc.totalCredits} = ${cgpaCalc.result.toFixed(2)}`;
                         doc.setFontSize(6.5); doc.setFont('times', 'normal'); doc.setTextColor(150, 150, 150);
                         const splitCalc = doc.splitTextToSize(calcStr, pageW - margin*2); 
                         doc.text(splitCalc, margin, y); 
@@ -1568,7 +1568,7 @@
                         remarksEntries.forEach(([key, remark]) => {
                             if (y > pageH - 15) { doc.addPage(); y = margin; }
                             doc.setTextColor(0, 0, 0); 
-                            doc.text(`• ${key}: ${remark}`, margin, y); y += 4;
+                            doc.text(`â€¢ ${key}: ${remark}`, margin, y); y += 4;
                         });
                         y += 4;
                     }
